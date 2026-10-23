@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full overflow-hidden">
+<head>
+    <meta charset="UTF-8">
+    <!-- Mobile & Tablet Safe Viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>分數乘法大冒險 - iPad & Phone Single Viewport HTML5 Game</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* Touch & Safe Area System Optimizations */
+        :root {
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+        }
+
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            max-height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #0f172a;
+        }
+
+        /* Strict Mathematical CSS Fraction Structure (Vinculum Line) */
+        .fraction {
+            display: inline-flex;
+            flex-direction: column;
+            vertical-align: middle;
+            align-items: center;
+            justify-content: center;
+            padding: 0 0.25em;
+            line-height: 1.05;
+        }
+
+        .numerator {
+            border-bottom: 2.5px solid currentColor;
+            padding-bottom: 0.1em;
+            margin-bottom: 0.08em;
+            text-align: center;
+            width: 100%;
+            font-weight: 800;
+            display: block;
+        }
+
+        .denominator {
+            padding-top: 0.05em;
+            text-align: center;
+            width: 100%;
+            font-weight: 800;
+            display: block;
+        }
+
+        .mixed-number {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.15em;
+        }
+
+        .whole-part {
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        /* 3D Dynamic Touch Button Effect */
+        .btn-touch {
+            transition: transform 0.05s ease, box-shadow 0.05s ease, background-color 0.15s ease;
+            box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+            -webkit-appearance: none;
+        }
+
+        .btn-touch:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        /* Input Field Focus & Glow Styling */
+        .fraction-input-box {
+            transition: all 0.12s ease-in-out;
+            cursor: pointer;
+        }
+
+        .fraction-input-box.active-field {
+            border-color: #f59e0b !important;
+            background-color: #fffbeb !important;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.45);
+            transform: scale(1.03);
+        }
+
+        /* Responsive Animations */
+        @keyframes cardShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: cardShake 0.35s ease-in-out;
+        }
+
+        @keyframes popUp {
+            0% { transform: scale(0.92); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popUp 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes floatUpFade {
+            0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -45px) scale(1.15); }
+        }
+        .float-badge {
+            animation: floatUpFade 0.85s ease-out forwards;
+        }
+
+        /* Custom Scrollbar for Modal content if text is long */
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased select-none h-full w-full overflow-hidden flex flex-col justify-center items-center p-1 sm:p-3">
+
+    <!-- Canvas Confetti Overlay -->
+    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+    <!-- Floating Score Feedback Badge -->
+    <div id="floating-feedback" class="fixed top-1/4 left-1/2 -translate-x-1/2 pointer-events-none z-40 hidden"></div>
+
+    <!-- Main Viewport Root Container (Strict 100dvh Fit) -->
+    <div class="w-full max-w-4xl h-full flex flex-col justify-between bg-slate-100 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border-2 sm:border-4 border-indigo-400/30 relative">
+
+        <!-- ==================== 1. START MENU SCREEN ==================== -->
+        <div id="screen-start" class="h-full w-full flex flex-col justify-between p-3 sm:p-5 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white animate-pop overflow-hidden">
+            
+            <!-- Header Banner -->
+            <div class="text-center space-y-1 sm:space-y-2 mt-1 shrink-0">
+                <div class="inline-block bg-white/20 backdrop-blur-md px-3 py-0.5 sm:px-4 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-wide uppercase border border-white/30">
+                    📱 平板 & 手機零滾動條版 (100dvh Fit)
+                </div>
+                <h1 class="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight drop-shadow-md">
+                    分數乘法大冒險
+                </h1>
+                <p class="text-indigo-100 text-xs sm:text-sm max-w-md mx-auto">
+                    看清標準橫線分數，精通分子與分母乘法觀念！
+                </p>
+            </div>
+
+            <!-- Game Mode & Difficulty Setup Card -->
+            <div class="space-y-3 sm:space-y-4 my-auto max-w-lg mx-auto w-full min-h-0 flex-1 flex flex-col justify-center">
+                
+                <!-- Difficulty Selection -->
+                <div>
+                    <label class="block text-xs sm:text-sm font-bold text-indigo-100 mb-1.5 text-center sm:text-left">
+                        🎯 選擇難度 (Difficulty)
+                    </label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="selectDifficulty('easy')" id="btn-diff-easy" class="diff-btn btn-touch p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/20 border-2 border-white/40 font-bold text-center hover:bg-white/30 transition">
+                            <div class="text-lg sm:text-2xl mb-0.5">🌱</div>
+                            <div class="text-xs sm:text-base">簡單</div>
+                            <div class="text-[9px] sm:text-xs text-indigo-100 font-normal mt-0.5">真分數 × 真分數</div>
+                        </button>
+                        <button onclick="selectDifficulty('medium')" id="btn-diff-medium" class="diff-btn btn-touch p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/20 border-2 border-white/40 font-bold text-center hover:bg-white/30 transition">
+                            <div class="text-lg sm:text-2xl mb-0.5">⚡</div>
+                            <div class="text-xs sm:text-base">中等</div>
+                            <div class="text-[9px] sm:text-xs text-indigo-100 font-normal mt-0.5">整數 × 真分數</div>
+                        </button>
+                        <button onclick="selectDifficulty('hard')" id="btn-diff-hard" class="diff-btn btn-touch p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/20 border-2 border-white/40 font-bold text-center hover:bg-white/30 transition">
+                            <div class="text-lg sm:text-2xl mb-0.5">👑</div>
+                            <div class="text-xs sm:text-base">困難</div>
+                            <div class="text-[9px] sm:text-xs text-indigo-100 font-normal mt-0.5">帶分數與約分</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mode Selection -->
+                <div>
+                    <label class="block text-xs sm:text-sm font-bold text-indigo-100 mb-1.5 text-center sm:text-left">
+                        🎮 選擇模式 (Game Mode)
+                    </label>
+                    <div class="grid grid-cols-2 gap-2 sm:gap-3">
+                        <button onclick="selectMode('timed')" id="btn-mode-timed" class="mode-btn btn-touch p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/20 border-2 border-white/40 font-bold flex items-center justify-center space-x-2 hover:bg-white/30 transition">
+                            <span class="text-xl sm:text-3xl">⏱️</span>
+                            <div class="text-left">
+                                <div class="text-xs sm:text-base">60秒限時挑戰</div>
+                                <div class="text-[9px] sm:text-xs text-indigo-100 font-normal">爭分奪秒，挑戰高分</div>
+                            </div>
+                        </button>
+                        <button onclick="selectMode('free')" id="btn-mode-free" class="mode-btn btn-touch p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/20 border-2 border-white/40 font-bold flex items-center justify-center space-x-2 hover:bg-white/30 transition">
+                            <span class="text-xl sm:text-3xl">☕</span>
+                            <div class="text-left">
+                                <div class="text-xs sm:text-base">自由練習模式</div>
+                                <div class="text-[9px] sm:text-xs text-indigo-100 font-normal">無時間限制，輕鬆解題</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- High Score Card -->
+                <div class="bg-black/20 backdrop-blur-md rounded-xl p-2.5 sm:p-3 flex items-center justify-between border border-white/20 text-xs sm:text-sm">
+                    <span class="flex items-center gap-1.5 font-bold text-indigo-100">
+                        <span>🏆</span> 歷史最高分 (<span id="start-diff-name">簡單</span>):
+                    </span>
+                    <span id="start-highscore" class="font-black text-amber-300 text-sm sm:text-lg">0 分</span>
+                </div>
+
+            </div>
+
+            <!-- Start Adventure CTA Button -->
+            <div class="text-center shrink-0 mb-1">
+                <button onclick="startGame()" class="btn-touch w-full max-w-md py-3 sm:py-4 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-slate-900 font-black text-lg sm:text-2xl rounded-xl sm:rounded-2xl shadow-xl transition border-b-4 border-amber-600">
+                    🚀 開始冒險！
+                </button>
+            </div>
+        </div>
+
+
+        <!-- ==================== 2. MAIN GAMEPLAY SCREEN (Strict 100dvh Layout) ==================== -->
+        <div id="screen-game" class="hidden h-full w-full flex flex-col justify-between p-2 sm:p-3 bg-slate-100 overflow-hidden">
+            
+            <!-- Game Top Header Bar -->
+            <div class="flex items-center justify-between bg-white p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 gap-1 shrink-0">
+                
+                <button onclick="showExitConfirm()" class="btn-touch px-2 py-1 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs sm:text-sm flex items-center space-x-1 border border-slate-300">
+                    <span>⬅️</span>
+                    <span class="hidden sm:inline">選單</span>
+                </button>
+
+                <!-- Timer Badge -->
+                <div id="timer-container" class="flex items-center space-x-1 bg-amber-100 text-amber-900 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl font-bold border border-amber-300 text-xs sm:text-base">
+                    <span>⏱️</span>
+                    <span id="timer-display">60s</span>
+                </div>
+
+                <!-- Streak Badge -->
+                <div class="flex items-center space-x-1 bg-purple-100 text-purple-800 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl font-bold border border-purple-200 text-xs sm:text-sm">
+                    <span>🔥</span>
+                    <span id="streak-display" class="text-purple-700 font-extrabold text-xs sm:text-base">0</span>
+                </div>
+
+                <!-- Score Badge -->
+                <div class="flex items-center space-x-1 bg-emerald-100 text-emerald-800 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl font-bold border border-emerald-300 text-xs sm:text-base">
+                    <span>⭐</span>
+                    <span id="score-display" class="text-emerald-700 font-black">0</span>
+                </div>
+
+                <!-- Sound Toggle -->
+                <button onclick="toggleAudio()" id="btn-audio" class="btn-touch p-1 sm:p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl border border-slate-300 text-xs sm:text-base">
+                    🔊
+                </button>
+            </div>
+
+            <!-- Problem & Interactive Input Cards Area -->
+            <div class="my-1.5 flex-1 min-h-0 flex flex-col md:flex-row items-stretch justify-center gap-2">
+                
+                <!-- Question Card -->
+                <div id="question-card" class="bg-white p-2.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-sm border-2 border-slate-200 flex-1 flex flex-col items-center justify-between relative min-h-0">
+                    
+                    <div class="w-full flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-400 tracking-wider uppercase">
+                        <span>第 <span id="question-count">1</span> 題</span>
+                        <span id="diff-badge-game" class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md border border-indigo-100">簡單</span>
+                    </div>
+
+                    <!-- Rendered Math Problem with Strict Vinculum Fractions -->
+                    <div id="math-problem-container" class="flex items-center justify-center space-x-1.5 sm:space-x-3 text-2xl sm:text-4xl md:text-5xl font-black text-slate-800 my-auto py-1">
+                        <!-- Dynamic Content -->
+                    </div>
+
+                    <!-- Step-by-Step Hint Trigger -->
+                    <button onclick="openHintModal()" class="btn-touch px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 font-bold text-xs rounded-xl flex items-center gap-1">
+                        <span>💡</span>
+                        <span>步驟與圖解提示</span>
+                    </button>
+                </div>
+
+                <!-- Answer Input Card (Touch Interactive) -->
+                <div class="bg-white p-2 sm:p-4 rounded-2xl sm:rounded-3xl shadow-sm border-2 border-slate-200 flex-1 flex flex-col items-center justify-center min-h-0">
+                    
+                    <div class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase mb-1 sm:mb-2 text-center">
+                        點擊下方欄位填寫答案 (無需實體鍵盤)
+                    </div>
+
+                    <!-- Fraction Stack Input Fields -->
+                    <div class="flex items-center justify-center space-x-2 sm:space-x-3 text-lg sm:text-2xl font-bold">
+                        
+                        <!-- Whole Part Input -->
+                        <div class="flex flex-col items-center">
+                            <span class="text-[10px] text-slate-400 mb-0.5 font-semibold">整數</span>
+                            <div onclick="setActiveField('whole')" id="box-whole" class="fraction-input-box min-w-[42px] h-10 sm:min-w-[54px] sm:h-13 px-1.5 border-2 border-slate-300 rounded-xl sm:rounded-2xl flex items-center justify-center bg-slate-50 text-slate-800 font-black">
+                                <span id="val-whole"></span>
+                            </div>
+                        </div>
+
+                        <!-- Fraction Stack -->
+                        <div class="flex flex-col items-center">
+                            <!-- Numerator -->
+                            <div class="flex flex-col items-center">
+                                <span class="text-[10px] text-slate-400 mb-0.5 font-semibold">分子</span>
+                                <div onclick="setActiveField('num')" id="box-num" class="fraction-input-box active-field min-w-[50px] h-9 sm:min-w-[60px] sm:h-12 px-1.5 border-2 border-amber-400 rounded-xl sm:rounded-2xl flex items-center justify-center bg-slate-50 text-slate-800 font-black">
+                                    <span id="val-num"></span>
+                                </div>
+                            </div>
+
+                            <!-- Solid Vinculum Line -->
+                            <div class="w-full h-1 bg-slate-800 my-1 rounded-full"></div>
+
+                            <!-- Denominator -->
+                            <div class="flex flex-col items-center">
+                                <div onclick="setActiveField('den')" id="box-den" class="fraction-input-box min-w-[50px] h-9 sm:min-w-[60px] sm:h-12 px-1.5 border-2 border-slate-300 rounded-xl sm:rounded-2xl flex items-center justify-center bg-slate-50 text-slate-800 font-black">
+                                    <span id="val-den"></span>
+                                </div>
+                                <span class="text-[10px] text-slate-400 mt-0.5 font-semibold">分母</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ==================== 3. ON-SCREEN TOUCH KEYPAD ==================== -->
+            <div class="bg-white p-1.5 sm:p-2.5 rounded-2xl sm:rounded-3xl shadow-md border border-slate-200 max-w-xl mx-auto w-full shrink-0">
+                
+                <!-- Quick Focus Target Jump Tabs -->
+                <div class="grid grid-cols-3 gap-1 mb-1.5">
+                    <button onclick="setActiveField('whole')" id="tab-whole" class="py-1 px-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        ✏️ 填整數
+                    </button>
+                    <button onclick="setActiveField('num')" id="tab-num" class="py-1 px-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white border border-amber-600">
+                        ✏️ 填分子
+                    </button>
+                    <button onclick="setActiveField('den')" id="tab-den" class="py-1 px-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        ✏️ 填分母
+                    </button>
+                </div>
+
+                <!-- Touch Keypad Grid -->
+                <div class="grid grid-cols-4 gap-1 sm:gap-1.5 text-base sm:text-xl font-bold">
+                    <button onclick="pressKey('7')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">7</button>
+                    <button onclick="pressKey('8')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">8</button>
+                    <button onclick="pressKey('9')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">9</button>
+                    <button onclick="pressKey('backspace')" class="btn-touch py-2 sm:py-2.5 bg-rose-100 hover:bg-rose-200 active:bg-rose-300 text-rose-700 rounded-xl border border-rose-300 text-xs sm:text-sm font-bold">⌫ 刪除</button>
+
+                    <button onclick="pressKey('4')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">4</button>
+                    <button onclick="pressKey('5')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">5</button>
+                    <button onclick="pressKey('6')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">6</button>
+                    <button onclick="pressKey('clear')" class="btn-touch py-2 sm:py-2.5 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 rounded-xl border border-amber-300 text-xs sm:text-sm font-bold">C 清空</button>
+
+                    <button onclick="pressKey('1')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">1</button>
+                    <button onclick="pressKey('2')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">2</button>
+                    <button onclick="pressKey('3')" class="btn-touch py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">3</button>
+                    <button onclick="cycleField()" class="btn-touch py-2 sm:py-2.5 bg-indigo-100 hover:bg-indigo-200 active:bg-indigo-300 text-indigo-700 rounded-xl border border-indigo-300 text-xs font-bold flex items-center justify-center">
+                        ↹ 切換
+                    </button>
+
+                    <button onclick="pressKey('0')" class="btn-touch col-span-2 py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-xl border border-slate-300 font-black">0</button>
+                    <button onclick="submitAnswer()" class="btn-touch col-span-2 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-xl border-b-4 border-emerald-700 text-xs sm:text-base font-black shadow-md flex items-center justify-center space-x-1">
+                        <span>✓ 送出答案</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- ==================== 4. STEP-BY-STEP HINT MODAL ==================== -->
+        <div id="modal-hint" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-5">
+            <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border-2 border-indigo-300 p-3.5 sm:p-5 max-w-lg w-full max-h-[90vh] overflow-y-auto custom-scroll animate-pop space-y-3">
+                
+                <div class="flex items-center justify-between border-b pb-2 border-slate-200">
+                    <h3 class="text-sm sm:text-lg font-black text-indigo-900 flex items-center gap-1.5">
+                        <span>💡</span> 分數乘法步驟圖解
+                    </h3>
+                    <button onclick="closeHintModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl p-1">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Problem Display -->
+                <div class="bg-indigo-50 p-2 rounded-xl border border-indigo-100 text-center">
+                    <span class="text-[10px] text-indigo-500 font-bold block mb-0.5">當前題目</span>
+                    <div id="hint-problem-display" class="flex items-center justify-center gap-1.5 text-lg sm:text-2xl font-bold text-slate-800"></div>
+                </div>
+
+                <!-- Step-by-Step Instructions -->
+                <div class="space-y-2 text-xs sm:text-sm text-slate-700">
+                    
+                    <!-- Step 1 -->
+                    <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                        <div class="font-bold text-indigo-600 mb-0.5">步驟 1：整數與帶分數化為假分數</div>
+                        <div id="hint-step-1" class="flex items-center gap-1 font-semibold"></div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                        <div class="font-bold text-indigo-600 mb-0.5">步驟 2：分子乘分子，分母乘分母</div>
+                        <div id="hint-step-2" class="flex items-center gap-1 font-semibold"></div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                        <div class="font-bold text-indigo-600 mb-0.5">步驟 3：約分成最簡分數</div>
+                        <div id="hint-step-3" class="flex items-center gap-1 font-semibold"></div>
+                    </div>
+
+                    <!-- Visual Area Model -->
+                    <div class="bg-amber-50 p-2 rounded-xl border border-amber-200">
+                        <div class="font-bold text-amber-800 mb-0.5">📊 2D 分數面積概念圖解</div>
+                        <p class="text-[10px] text-amber-700 mb-1">重疊顏色區塊代表分子相乘結果，網格總數代表分母相乘結果：</p>
+                        <div id="hint-visual-container" class="flex justify-center my-1"></div>
+                    </div>
+
+                </div>
+
+                <button onclick="closeHintModal()" class="btn-touch w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs sm:text-sm">
+                    我知道了，繼續挑戰！
+                </button>
+            </div>
+        </div>
+
+
+        <!-- ==================== 5. CUSTOM EXIT CONFIRMATION MODAL ==================== -->
+        <div id="modal-confirm-exit" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border-2 border-indigo-200 p-4 sm:p-5 max-w-sm w-full text-center animate-pop space-y-3">
+                <div class="text-3xl">⚠️</div>
+                <h3 class="text-base sm:text-lg font-black text-slate-800">確定要返回主選單？</h3>
+                <p class="text-xs text-slate-600 font-medium">當前遊戲進度將不會儲存喔！</p>
+                <div class="flex space-x-2 pt-1">
+                    <button onclick="closeExitConfirm()" class="btn-touch flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-300">
+                        繼續遊戲
+                    </button>
+                    <button onclick="exitToMenu()" class="btn-touch flex-1 py-2 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md border-b-4 border-rose-700">
+                        確定返回
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ==================== 6. GAME OVER SCREEN ==================== -->
+        <div id="screen-gameover" class="hidden fixed inset-0 bg-slate-900/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border-4 border-amber-400 p-4 sm:p-6 max-w-md w-full text-center animate-pop space-y-3.5">
+                
+                <div id="result-trophy" class="text-4xl sm:text-5xl">🏆</div>
+                
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-black text-slate-800">冒險完成！</h2>
+                    <p id="result-praise" class="text-amber-600 font-bold text-xs sm:text-sm mt-0.5">太棒了！你是分數乘法大師！</p>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
+                    <div class="bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                        <div class="text-[10px] text-slate-400 font-bold">總得分</div>
+                        <div id="res-score" class="text-lg sm:text-xl font-black text-emerald-600">0</div>
+                    </div>
+                    <div class="bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                        <div class="text-[10px] text-slate-400 font-bold">正確率</div>
+                        <div id="res-accuracy" class="text-lg sm:text-xl font-black text-indigo-600">0%</div>
+                    </div>
+                    <div class="bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                        <div class="text-[10px] text-slate-400 font-bold">答對題數</div>
+                        <div id="res-correct-count" class="text-lg sm:text-xl font-black text-blue-600">0 / 0</div>
+                    </div>
+                    <div class="bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                        <div class="text-[10px] text-slate-400 font-bold">最高連擊</div>
+                        <div id="res-max-streak" class="text-lg sm:text-xl font-black text-purple-600">0 🔥</div>
+                    </div>
+                </div>
+
+                <!-- High Score Alert -->
+                <div id="new-highscore-badge" class="hidden bg-amber-100 text-amber-800 py-1 px-2.5 rounded-lg font-bold text-xs border border-amber-300">
+                    🎉 刷新歷史最高紀錄！
+                </div>
+
+                <!-- End Game Navigation Buttons -->
+                <div class="flex space-x-2">
+                    <button onclick="exitToMenu()" class="btn-touch flex-1 py-2 sm:py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs sm:text-sm">
+                        🏠 主選單
+                    </button>
+                    <button onclick="startGame()" class="btn-touch flex-1 py-2 sm:py-2.5 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-slate-900 font-black rounded-xl text-xs sm:text-sm shadow-md border-b-4 border-amber-600">
+                        🔄 再玩一次
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ==================== JAVASCRIPT GAME LOGIC ==================== -->
+    <script>
+        /* ==================== STATE MANAGEMENT ==================== */
+        let currentDifficulty = 'easy'; // 'easy' | 'medium' | 'hard'
+        let currentMode = 'timed';      // 'timed' | 'free'
+        
+        let score = 0;
+        let streak = 0;
+        let maxStreak = 0;
+        let correctAnswersCount = 0;
+        let totalQuestionsAnswered = 0;
+        let questionNumber = 1;
+
+        let timeLeft = 60;
+        let timerInterval = null;
+        let isAudioMuted = false;
+
+        // Active Input Target Field: 'whole' | 'num' | 'den'
+        let activeField = 'num';
+        let inputValues = { whole: '', num: '', den: '' };
+
+        // Current Question State
+        let currentProblem = {
+            f1: { w: 0, n: 1, d: 2 },
+            f2: { w: 0, n: 3, d: 4 },
+            imp1: { n: 1, d: 2 },
+            imp2: { n: 3, d: 4 },
+            rawResult: { n: 3, d: 8 },
+            simpResult: { w: 0, n: 3, d: 8, pureN: 3 }
+        };
+
+        /* ==================== FRACTION HTML BUILDER (Strict Vinculum Line) ==================== */
+        function createFractionHTML(w, n, d) {
+            let html = '';
+            if (w && w > 0) {
+                html += `<span class="whole-part mr-0.5">${w}</span>`;
+            }
+            if (n !== undefined && d !== undefined && d !== 1) {
+                html += `
+                    <span class="fraction">
+                        <span class="numerator">${n}</span>
+                        <span class="denominator">${d}</span>
+                    </span>
+                `;
+            } else if (n !== undefined && (d === 1 || d === undefined) && (!w || w === 0)) {
+                html += `<span class="whole-part">${n}</span>`;
+            }
+            return `<span class="mixed-number">${html}</span>`;
+        }
+
+        /* ==================== LOCAL STORAGE HIGH SCORES ==================== */
+        function getHighScore(diff) {
+            return parseInt(localStorage.getItem(`frac_game_hs_${diff}`) || '0');
+        }
+
+        function setHighScore(diff, newScore) {
+            const old = getHighScore(diff);
+            if (newScore > old) {
+                localStorage.setItem(`frac_game_hs_${diff}`, newScore.toString());
+                return true;
+            }
+            return false;
+        }
+
+        function updateHighScoreDisplay() {
+            const hs = getHighScore(currentDifficulty);
+            document.getElementById('start-highscore').innerText = `${hs} 分`;
+            
+            const diffNames = { easy: '簡單', medium: '中等', hard: '困難' };
+            document.getElementById('start-diff-name').innerText = diffNames[currentDifficulty];
+        }
+
+        /* ==================== SYNTHESIZED WEB AUDIO API ==================== */
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playSound(type) {
+            if (isAudioMuted) return;
+            try {
+                const ctx = getAudioContext();
+                const now = ctx.currentTime;
+
+                if (type === 'click') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(240, now + 0.04);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.04);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.04);
+                } 
+                else if (type === 'correct') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+                        gain.gain.setValueAtTime(0.14, now + idx * 0.04);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.18);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.04);
+                        osc.stop(now + idx * 0.04 + 0.18);
+                    });
+                }
+                else if (type === 'wrong') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.linearRampToValueAtTime(90, now + 0.2);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+                else if (type === 'streak') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+                        gain.gain.setValueAtTime(0.18, now + idx * 0.04);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.2);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.04);
+                        osc.stop(now + idx * 0.04 + 0.2);
+                    });
+                }
+                else if (type === 'gameover') {
+                    const notes = [440, 554.37, 659.25, 880];
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                        gain.gain.setValueAtTime(0.14, now + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.25);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + idx * 0.08);
+                        osc.stop(now + idx * 0.08 + 0.25);
+                    });
+                }
+            } catch (e) {
+                console.log("Audio play error:", e);
+            }
+        }
+
+        function toggleAudio() {
+            isAudioMuted = !isAudioMuted;
+            document.getElementById('btn-audio').innerText = isAudioMuted ? '🔇' : '🔊';
+        }
+
+        /* ==================== DIFFICULTY & MODE SELECTION ==================== */
+        function selectDifficulty(diff) {
+            currentDifficulty = diff;
+            playSound('click');
+            
+            document.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.classList.remove('bg-amber-400', 'text-slate-900', 'border-amber-300');
+                btn.classList.add('bg-white/20', 'text-white', 'border-white/40');
+            });
+
+            const selectedBtn = document.getElementById(`btn-diff-${diff}`);
+            selectedBtn.classList.remove('bg-white/20', 'text-white', 'border-white/40');
+            selectedBtn.classList.add('bg-amber-400', 'text-slate-900', 'border-amber-300');
+
+            updateHighScoreDisplay();
+        }
+
+        function selectMode(mode) {
+            currentMode = mode;
+            playSound('click');
+
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('bg-amber-400', 'text-slate-900', 'border-amber-300');
+                btn.classList.add('bg-white/20', 'text-white', 'border-white/40');
+            });
+
+            const selectedBtn = document.getElementById(`btn-mode-${mode}`);
+            selectedBtn.classList.remove('bg-white/20', 'text-white', 'border-white/40');
+            selectedBtn.classList.add('bg-amber-400', 'text-slate-900', 'border-amber-300');
+        }
+
+        // Initialize Selection Defaults
+        selectDifficulty('easy');
+        selectMode('timed');
+
+        /* ==================== GAME LIFECYCLE ==================== */
+        function startGame() {
+            getAudioContext();
+            playSound('click');
+
+            score = 0;
+            streak = 0;
+            maxStreak = 0;
+            correctAnswersCount = 0;
+            totalQuestionsAnswered = 0;
+            questionNumber = 1;
+            timeLeft = 60;
+
+            document.getElementById('score-display').innerText = '0';
+            document.getElementById('streak-display').innerText = '0';
+            document.getElementById('question-count').innerText = '1';
+
+            const diffNames = { easy: '簡單', medium: '中等', hard: '困難' };
+            document.getElementById('diff-badge-game').innerText = diffNames[currentDifficulty];
+
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('screen-gameover').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('hidden');
+
+            const timerContainer = document.getElementById('timer-container');
+            if (currentMode === 'timed') {
+                timerContainer.classList.remove('hidden');
+                document.getElementById('timer-display').innerText = '60s';
+                startTimer();
+            } else {
+                timerContainer.classList.add('hidden');
+            }
+
+            nextQuestion();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer-display').innerText = `${timeLeft}s`;
+                
+                if (timeLeft <= 10) {
+                    document.getElementById('timer-container').classList.add('animate-pulse', 'bg-rose-100', 'text-rose-800');
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function showExitConfirm() {
+            playSound('click');
+            document.getElementById('modal-confirm-exit').classList.remove('hidden');
+        }
+
+        function closeExitConfirm() {
+            playSound('click');
+            document.getElementById('modal-confirm-exit').classList.add('hidden');
+        }
+
+        function exitToMenu() {
+            playSound('click');
+
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+
+            document.getElementById('modal-confirm-exit').classList.add('hidden');
+            document.getElementById('modal-hint').classList.add('hidden');
+            document.getElementById('screen-gameover').classList.add('hidden');
+            document.getElementById('screen-game').classList.add('hidden');
+
+            document.getElementById('screen-start').classList.remove('hidden');
+
+            clearInputs();
+            updateHighScoreDisplay();
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            playSound('gameover');
+
+            const accuracy = totalQuestionsAnswered > 0 
+                ? Math.round((correctAnswersCount / totalQuestionsAnswered) * 100) 
+                : 0;
+
+            document.getElementById('res-score').innerText = score;
+            document.getElementById('res-accuracy').innerText = `${accuracy}%`;
+            document.getElementById('res-correct-count').innerText = `${correctAnswersCount} / ${totalQuestionsAnswered}`;
+            document.getElementById('res-max-streak').innerText = `${maxStreak} 🔥`;
+
+            const isNewHs = setHighScore(currentDifficulty, score);
+            const hsBadge = document.getElementById('new-highscore-badge');
+            if (isNewHs) {
+                hsBadge.classList.remove('hidden');
+            } else {
+                hsBadge.classList.add('hidden');
+            }
+
+            const praiseElem = document.getElementById('result-praise');
+            const trophyElem = document.getElementById('result-trophy');
+
+            if (score >= 800) {
+                trophyElem.innerText = '👑';
+                praiseElem.innerText = '神級表現！你是真正的分數運算大師！';
+            } else if (score >= 400) {
+                trophyElem.innerText = '🥇';
+                praiseElem.innerText = '非常優秀！乘法觀念非常清晰！';
+            } else if (score >= 200) {
+                trophyElem.innerText = '🥈';
+                praiseElem.innerText = '做的很棒！繼續練習挑戰更高分！';
+            } else {
+                trophyElem.innerText = '🌱';
+                praiseElem.innerText = '再接再厲！多利用圖解提示就能大幅進步！';
+            }
+
+            document.getElementById('screen-gameover').classList.remove('hidden');
+            triggerConfetti();
+        }
+
+        /* ==================== MATH PROBLEM GENERATOR ==================== */
+        function gcd(a, b) {
+            a = Math.abs(a);
+            b = Math.abs(b);
+            while (b) {
+                let t = b;
+                b = a % b;
+                a = t;
+            }
+            return a || 1;
+        }
+
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function generateProblem() {
+            let f1 = { w: 0, n: 0, d: 1 };
+            let f2 = { w: 0, n: 0, d: 1 };
+
+            if (currentDifficulty === 'easy') {
+                // Easy: Proper x Proper
+                f1.d = randInt(2, 5);
+                f1.n = randInt(1, f1.d - 1);
+
+                f2.d = randInt(2, 5);
+                f2.n = randInt(1, f2.d - 1);
+            } 
+            else if (currentDifficulty === 'medium') {
+                // Medium: Integer x Proper / Proper x Integer
+                if (Math.random() < 0.5) {
+                    f1.w = randInt(2, 5);
+                    f2.d = randInt(2, 6);
+                    f2.n = randInt(1, f2.d - 1);
+                } else {
+                    f1.d = randInt(2, 6);
+                    f1.n = randInt(1, f1.d - 1);
+                    f2.w = randInt(2, 5);
+                }
+            } 
+            else {
+                // Hard: Mixed / Cross Simplification
+                if (Math.random() < 0.5) {
+                    f1.w = randInt(1, 2);
+                    f1.d = randInt(2, 4);
+                    f1.n = randInt(1, f1.d - 1);
+
+                    f2.d = randInt(2, 5);
+                    f2.n = randInt(1, f2.d - 1);
+                } else {
+                    f1.w = randInt(1, 2);
+                    f1.d = randInt(2, 3);
+                    f1.n = randInt(1, f1.d - 1);
+
+                    f2.w = randInt(1, 2);
+                    f2.d = randInt(2, 3);
+                    f2.n = randInt(1, f2.d - 1);
+                }
+            }
+
+            let imp1_n = f1.w > 0 ? f1.w * f1.d + f1.n : f1.n;
+            let imp1_d = f1.d;
+
+            let imp2_n = f2.w > 0 ? f2.w * f2.d + f2.n : f2.n;
+            let imp2_d = f2.d;
+
+            let raw_n = imp1_n * imp2_n;
+            let raw_d = imp1_d * imp2_d;
+
+            let g = gcd(raw_n, raw_d);
+            let simp_n = raw_n / g;
+            let simp_d = raw_d / g;
+
+            let simp_w = Math.floor(simp_n / simp_d);
+            let rem_n = simp_n % simp_d;
+
+            currentProblem = {
+                f1: f1,
+                f2: f2,
+                imp1: { n: imp1_n, d: imp1_d },
+                imp2: { n: imp2_n, d: imp2_d },
+                rawResult: { n: raw_n, d: raw_d },
+                simpResult: { w: simp_w, n: rem_n, d: simp_d, pureN: simp_n }
+            };
+
+            const html1 = createFractionHTML(f1.w, f1.n, f1.d);
+            const html2 = createFractionHTML(f2.w, f2.n, f2.d);
+
+            document.getElementById('math-problem-container').innerHTML = `
+                ${html1}
+                <span class="mx-1 text-slate-400 font-black">×</span>
+                ${html2}
+                <span class="mx-1 text-slate-400 font-black">=</span>
+            `;
+        }
+
+        function nextQuestion() {
+            clearInputs();
+            setActiveField('num');
+            generateProblem();
+        }
+
+        /* ==================== VIRTUAL TOUCH KEYPAD CONTROL ==================== */
+        function setActiveField(field) {
+            activeField = field;
+            playSound('click');
+
+            ['whole', 'num', 'den'].forEach(f => {
+                const box = document.getElementById(`box-${f}`);
+                const tab = document.getElementById(`tab-${f}`);
+
+                box.classList.remove('active-field');
+                box.classList.add('border-slate-300');
+
+                tab.classList.remove('bg-amber-500', 'text-white', 'border-amber-600');
+                tab.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-200');
+            });
+
+            const activeBox = document.getElementById(`box-${field}`);
+            const activeTab = document.getElementById(`tab-${field}`);
+
+            activeBox.classList.add('active-field');
+            activeTab.classList.remove('bg-slate-100', 'text-slate-600', 'border-slate-200');
+            activeTab.classList.add('bg-amber-500', 'text-white', 'border-amber-600');
+        }
+
+        function cycleField() {
+            if (activeField === 'whole') setActiveField('num');
+            else if (activeField === 'num') setActiveField('den');
+            else setActiveField('whole');
+        }
+
+        function pressKey(key) {
+            playSound('click');
+
+            if (key === 'clear') {
+                inputValues[activeField] = '';
+            } else if (key === 'backspace') {
+                inputValues[activeField] = inputValues[activeField].slice(0, -1);
+            } else {
+                if (inputValues[activeField].length < 3) {
+                    inputValues[activeField] += key;
+                }
+            }
+
+            updateInputDisplay();
+        }
+
+        function clearInputs() {
+            inputValues.whole = '';
+            inputValues.num = '';
+            inputValues.den = '';
+            updateInputDisplay();
+        }
+
+        function updateInputDisplay() {
+            document.getElementById('val-whole').innerText = inputValues.whole;
+            document.getElementById('val-num').innerText = inputValues.num;
+            document.getElementById('val-den').innerText = inputValues.den;
+        }
+
+        // Physical Keyboard Backup Listener
+        window.addEventListener('keydown', (e) => {
+            if (document.getElementById('screen-game').classList.contains('hidden')) return;
+
+            if (e.key >= '0' && e.key <= '9') pressKey(e.key);
+            else if (e.key === 'Backspace') pressKey('backspace');
+            else if (e.key === 'Tab') { e.preventDefault(); cycleField(); }
+            else if (e.key === 'Enter') submitAnswer();
+        });
+
+        /* ==================== ANSWER EVALUATION (+100 / +50 / -30) ==================== */
+        function submitAnswer() {
+            let uW = parseInt(inputValues.whole) || 0;
+            let uN = parseInt(inputValues.num) || 0;
+            let uD = parseInt(inputValues.den) || (uN > 0 ? 1 : 0);
+
+            if (uW === 0 && uN === 0 && inputValues.num === '' && inputValues.whole === '') {
+                showFloatingFeedback("請填寫答案！", "amber");
+                playSound('wrong');
+                return;
+            }
+
+            if (uN > 0 && uD === 0) {
+                showFloatingFeedback("分母不能為 0！", "rose");
+                playSound('wrong');
+                return;
+            }
+
+            totalQuestionsAnswered++;
+
+            let userTotalNum = uW * (uD || 1) + uN;
+            let userTotalDen = uD || 1;
+
+            let targetSimp = currentProblem.simpResult;
+            let isMathEqual = (userTotalNum * targetSimp.d === targetSimp.pureN * userTotalDen);
+
+            if (!isMathEqual) {
+                // ================= WRONG ANSWER (-30 Points) =================
+                score = Math.max(0, score - 30);
+                streak = 0;
+
+                document.getElementById('score-display').innerText = score;
+                document.getElementById('streak-display').innerText = streak;
+
+                playSound('wrong');
+                shakeQuestionCard();
+                showFloatingFeedback("-30 分", "rose");
+
+                setTimeout(() => {
+                    openHintModal();
+                }, 550);
+
+            } else {
+                // ================= MATHEMATICALLY EQUAL =================
+                let userGcd = gcd(userTotalNum, userTotalDen);
+                let isSimplified = (userGcd === 1);
+
+                if (!isSimplified) {
+                    // Correct value, unsimplified (+50 pts)
+                    score += 50;
+                    document.getElementById('score-display').innerText = score;
+
+                    playSound('click');
+                    showFloatingFeedback("+50分 (未約分)", "amber");
+
+                    correctAnswersCount++;
+                    setTimeout(() => {
+                        questionNumber++;
+                        document.getElementById('question-count').innerText = questionNumber;
+                        nextQuestion();
+                    }, 1000);
+
+                } else {
+                    // ================= PERFECT CORRECT (+100 Points + Combo) =================
+                    correctAnswersCount++;
+                    streak++;
+                    if (streak > maxStreak) maxStreak = streak;
+
+                    let comboBonus = streak >= 3 ? (streak - 2) * 20 : 0;
+                    let addedScore = 100 + comboBonus;
+                    score += addedScore;
+
+                    document.getElementById('score-display').innerText = score;
+                    document.getElementById('streak-display').innerText = streak;
+
+                    if (streak >= 3) {
+                        playSound('streak');
+                        showFloatingFeedback(`+${addedScore} 🔥 ${streak}連擊!`, "purple");
+                    } else {
+                        playSound('correct');
+                        showFloatingFeedback(`+${addedScore}`, "emerald");
+                    }
+
+                    triggerConfetti();
+
+                    setTimeout(() => {
+                        questionNumber++;
+                        document.getElementById('question-count').innerText = questionNumber;
+                        nextQuestion();
+                    }, 900);
+                }
+            }
+        }
+
+        /* ==================== STEP-BY-STEP HINT MODAL ==================== */
+        function openHintModal() {
+            playSound('click');
+
+            const p = currentProblem;
+
+            const p1HTML = createFractionHTML(p.f1.w, p.f1.n, p.f1.d);
+            const p2HTML = createFractionHTML(p.f2.w, p.f2.n, p.f2.d);
+            document.getElementById('hint-problem-display').innerHTML = `${p1HTML} × ${p2HTML}`;
+
+            // Step 1
+            const imp1HTML = createFractionHTML(0, p.imp1.n, p.imp1.d);
+            const imp2HTML = createFractionHTML(0, p.imp2.n, p.imp2.d);
+            document.getElementById('hint-step-1').innerHTML = `
+                ${p1HTML} = ${imp1HTML}，${p2HTML} = ${imp2HTML}
+            `;
+
+            // Step 2
+            document.getElementById('hint-step-2').innerHTML = `
+                <span class="fraction">
+                    <span class="numerator">${p.imp1.n} × ${p.imp2.n}</span>
+                    <span class="denominator">${p.imp1.d} × ${p.imp2.d}</span>
+                </span>
+                <span>=</span>
+                ${createFractionHTML(0, p.rawResult.n, p.rawResult.d)}
+            `;
+
+            // Step 3
+            const g = gcd(p.rawResult.n, p.rawResult.d);
+            if (g > 1) {
+                document.getElementById('hint-step-3').innerHTML = `
+                    <span>分子與分母同時除以 ${g}：</span>
+                    ${createFractionHTML(0, p.rawResult.n, p.rawResult.d)}
+                    <span>=</span>
+                    ${createFractionHTML(p.simpResult.w, p.simpResult.n, p.simpResult.d)}
+                `;
+            } else {
+                document.getElementById('hint-step-3').innerHTML = `
+                    <span>已是最簡分數，不需約分：</span>
+                    ${createFractionHTML(p.simpResult.w, p.simpResult.n, p.simpResult.d)}
+                `;
+            }
+
+            renderVisualFractionGrid(p);
+            document.getElementById('modal-hint').classList.remove('hidden');
+        }
+
+        function closeHintModal() {
+            playSound('click');
+            document.getElementById('modal-hint').classList.add('hidden');
+        }
+
+        function renderVisualFractionGrid(p) {
+            const container = document.getElementById('hint-visual-container');
+            
+            const n1 = p.imp1.n;
+            const d1 = p.imp1.d;
+            const n2 = p.imp2.n;
+            const d2 = p.imp2.d;
+
+            if (d1 <= 8 && d2 <= 8) {
+                let svg = `<svg class="w-32 h-32 sm:w-36 sm:h-36 border-2 border-amber-400 rounded-xl bg-white shadow-inner" viewBox="0 0 100 100">`;
+                
+                let cellW = 100 / d1;
+                let cellH = 100 / d2;
+
+                for (let r = 0; r < d2; r++) {
+                    for (let c = 0; c < d1; c++) {
+                        let isColSelected = c < n1;
+                        let isRowSelected = r < n2;
+
+                        let fill = "#f1f5f9"; 
+                        if (isColSelected && isRowSelected) fill = "#10b981"; // Product Area
+                        else if (isColSelected) fill = "#93c5fd"; 
+                        else if (isRowSelected) fill = "#fde047"; 
+
+                        svg += `<rect x="${c * cellW}" y="${r * cellH}" width="${cellW}" height="${cellH}" fill="${fill}" stroke="#cbd5e1" stroke-width="0.8"/>`;
+                    }
+                }
+                svg += `</svg>`;
+                container.innerHTML = `
+                    <div class="flex flex-col items-center gap-1">
+                        ${svg}
+                        <div class="text-[10px] text-amber-800 font-semibold mt-0.5">
+                            🟩 重疊綠色區塊占全體的 <span class="font-bold">${p.simpResult.pureN}/${p.rawResult.d}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `<div class="text-xs text-slate-500 font-bold">數字較大，請參考步驟解說！</div>`;
+            }
+        }
+
+        /* ==================== ANIMATIONS & CONFETTI ==================== */
+        function shakeQuestionCard() {
+            const card = document.getElementById('question-card');
+            card.classList.add('animate-shake', 'border-rose-400');
+            setTimeout(() => {
+                card.classList.remove('animate-shake', 'border-rose-400');
+            }, 400);
+        }
+
+        function showFloatingFeedback(text, color) {
+            const feedback = document.getElementById('floating-feedback');
+            
+            let bgClasses = "bg-emerald-500 text-white";
+            if (color === 'amber') bgClasses = "bg-amber-500 text-white";
+            if (color === 'rose') bgClasses = "bg-rose-500 text-white";
+            if (color === 'purple') bgClasses = "bg-purple-600 text-white";
+
+            feedback.className = `fixed top-1/4 left-1/2 -translate-x-1/2 pointer-events-none z-40 float-badge px-3 py-1.5 rounded-xl font-black text-base sm:text-xl shadow-xl ${bgClasses}`;
+            feedback.innerText = text;
+            feedback.classList.remove('hidden');
+
+            setTimeout(() => {
+                feedback.classList.add('hidden');
+            }, 850);
+        }
+
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particles = [];
+            const colors = ['#f43f5e', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899'];
+
+            for (let i = 0; i < 40; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2 - 20,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.7) * 12,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 7 + 3,
+                    rotation: Math.random() * 360,
+                    vRot: (Math.random() - 0.5) * 10,
+                    life: 1.0
+                });
+            }
+
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.32;
+                    p.life -= 0.028;
+                    p.rotation += p.vRot;
+
+                    if (p.life > 0) {
+                        alive = true;
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate((p.rotation * Math.PI) / 180);
+                        ctx.fillStyle = p.color;
+                        ctx.globalAlpha = Math.max(0, p.life);
+                        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+
+                if (alive) {
+                    requestAnimationFrame(render);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            render();
+        }
+    </script>
+</body>
+</html>
